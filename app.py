@@ -15,7 +15,7 @@ from PIL import Image
 
 # Configurar la página
 st.set_page_config(
-    page_title="Predictor de Precios de Viviendas",
+    page_title="Predictor de Precios de Viviendas test",
     page_icon="🏠",
     layout="wide"
 )
