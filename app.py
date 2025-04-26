@@ -172,16 +172,27 @@ elif page == "Predicción":
             
             col1, col2 = st.columns(2)
             
+           # with col1:
+                #rm = st.slider("Número medio de habitaciones (RM)", 
+                              # float(df['RM'].min()), 
+                              # float(df['RM'].max()), 
+                              # float(df['RM'].mean()))
+                
+                #lstat = st.slider("% de población de estatus bajo (LSTAT)", 
+                                 # float(df['LSTAT'].min()), 
+                                  #float(df['LSTAT'].max()), 
+                                  #float(df['LSTAT'].mean()))
             with col1:
-                rm = st.slider("Número medio de habitaciones (RM)", 
-                               float(df['RM'].min()), 
-                               float(df['RM'].max()), 
-                               float(df['RM'].mean()))
+                # Cambiar de slider a selectbox para RM
+                rm_min = int(np.floor(df['RM'].min()))
+                rm_max = int(np.ceil(df['RM'].max()))
+                rm_values = list(range(rm_min, rm_max + 1))
+                rm = st.selectbox("Número de habitaciones (RM)", rm_values, index=rm_values.index(round(df['RM'].mean())))
                 
                 lstat = st.slider("% de población de estatus bajo (LSTAT)", 
-                                  float(df['LSTAT'].min()), 
-                                  float(df['LSTAT'].max()), 
-                                  float(df['LSTAT'].mean()))
+                                float(df['LSTAT'].min()), 
+                                float(df['LSTAT'].max()), 
+                                float(df['LSTAT'].mean()))
             
             with col2:
                 ptratio = st.slider("Ratio alumno-profesor (PTRATIO)", 
