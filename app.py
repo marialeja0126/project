@@ -22,12 +22,14 @@ st.set_page_config(
 
 # Funciones para cargar datos y modelos
 @st.cache_data
-def load_data():
-    try:
-        return pd.read_csv('housing_data.csv')
-    except FileNotFoundError:
-        st.error("No se encontró el archivo de datos. Por favor, asegúrate de que housing_data.csv existe en el directorio.")
-        return None
+def load_data(file):
+    data = pd.read_csv(file)
+    return data
+
+uploaded_file = st.file_uploader("Subir archivo de datos", type=["csv"])
+if uploaded_file is not None:
+    st.info("Archivo cargado exitosamente", icon="✅")
+    st.stop()
 
 @st.cache_resource
 def load_model():
@@ -40,7 +42,7 @@ def load_model():
         return None, None
 
 # Cargar datos y modelo
-df = load_data()
+df = load_data(uploaded_file)
 model, scaler = load_model()
 
 # Título de la aplicación
