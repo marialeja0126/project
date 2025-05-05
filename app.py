@@ -20,38 +20,15 @@ st.set_page_config(
     layout="wide"
 )
 
-# Inicializar estados
-if 'data_uploaded' not in st.session_state:
-    st.session_state.data_uploaded = False
-if 'uploaded_file' not in st.session_state:
-    st.session_state.uploaded_file = None
-
-# Función para reiniciar el estado
-def limpiar_app():
-    st.session_state.data_uploaded = False
-    st.session_state.uploaded_file = None
-    st.experimental_rerun()
-
-# Si no se ha subido archivo, pedirlo antes de mostrar cualquier cosa
-if not st.session_state.data_uploaded:
-    st.title("🏠 Predictor de Precios de Viviendas test")
-    st.markdown("### Por favor, sube un archivo CSV para comenzar.")
-    uploaded_file = st.file_uploader("Subir archivo de datos", type=["csv"])
-    
-    if uploaded_file is not None:
-        st.session_state.uploaded_file = uploaded_file
-        st.session_state.data_uploaded = True
-        st.experimental_rerun()
-    st.stop()  # Detener ejecución aquí si no hay archivo
-
-# Cargar datos y modelo
+# Funciones para cargar datos y modelos
 @st.cache_data
 def load_data(file):
-    return pd.read_csv(file)
+    data = pd.read_csv(file)
+    return data
 
 uploaded_file = st.file_uploader("Subir archivo de datos", type=["csv"])
-if uploaded_file is not None:
-    st.info("Archivo cargado exitosamente", icon="✅")
+if uploaded_file is None:
+    st.info("Por favor, suba un archivo de datos.", icon="i️")
     st.stop()
 
 @st.cache_resource
@@ -64,11 +41,9 @@ def load_model():
         st.error("No se encontraron los archivos del modelo. Asegúrate de que los archivos existen en la carpeta models/.")
         return None, None
 
-df = load_data(st.session_state.uploaded_file)
+# Cargar datos y modelo
+df = load_data(uploaded_file)
 model, scaler = load_model()
-
-# Botón para limpiar aplicación (se puede poner en el sidebar o en cualquier página)
-st.sidebar.button("🧹 Limpiar aplicación", on_click=limpiar_app)
 
 # Título de la aplicación
 st.title("🏠 Predictor de Precios de Viviendas test")
