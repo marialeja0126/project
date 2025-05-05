@@ -28,7 +28,7 @@ def load_data(file):
 
 uploaded_file = st.file_uploader("Subir archivo de datos", type=["csv"])
 if uploaded_file is None:
-    st.info("Por favor, suba un archivo de datos.", icon="i️")
+    st.info("Por favor, suba un archivo de datos.")
     st.stop()
 
 @st.cache_resource
