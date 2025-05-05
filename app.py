@@ -30,7 +30,7 @@ if 'uploaded_file' not in st.session_state:
 def limpiar_app():
     st.session_state.data_uploaded = False
     st.session_state.uploaded_file = None
-    st.experimental_rerun()
+    st.rerun()
 
 # Si no se ha subido archivo, pedirlo antes de mostrar cualquier cosa
 if not st.session_state.data_uploaded:
@@ -41,7 +41,7 @@ if not st.session_state.data_uploaded:
     if uploaded_file is not None:
         st.session_state.uploaded_file = uploaded_file
         st.session_state.data_uploaded = True
-        st.experimental_rerun()
+        st.rerun()
     st.stop()  # Detener ejecución aquí si no hay archivo
 
 # Funciones para cargar datos y modelos
