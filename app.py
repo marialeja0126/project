@@ -2,12 +2,15 @@
 APLICACIÓN STREAMLIT PARA DESPLIEGUE DEL MODELO DE PRECIOS DE VIVIENDAS
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 import joblib
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from pyod.models.knn import KNN
+import seaborn as sns
+from sklearn.preprocessing import MinMaxScaler
+import streamlit as st
 
 # Configurar la página
 st.set_page_config(
@@ -61,15 +64,26 @@ if not st.session_state.data_uploaded:
 def load_model():
     try:
         model = joblib.load('models/housing_model.pkl')
-        scaler = joblib.load('models/scaler.pkl')
-        return model, scaler
+        return model
     except FileNotFoundError:
         st.error("Archivos del modelo no encontrados en carpeta 'models/'.")
         return None, None
 
 # Cargar datos y modelo
 df = st.session_state.df
-model, scaler = load_model()
+model = load_model()
+
+scaler = MinMaxScaler()
+
+if 'limpieza_aplicada' not in st.session_state:
+    st.session_state.limpieza_aplicada = False
+if 'df_limpio' not in st.session_state:
+    st.session_state.df_limpio = None
+
+# Insertar "Limpieza de Datos" al flujo
+if "Limpieza de Datos" not in PAGES:
+    PAGES.insert(1, "Limpieza de Datos")
+
 
 # Navegación por botones
 page = PAGES[st.session_state.page_index]
@@ -118,6 +132,49 @@ if page == "Inicio":
         ax.set_ylabel('Precio promedio')
         plt.xticks(rotation=45)
         st.pyplot(fig)
+
+elif page == "Limpieza de Datos":
+    st.header("🌍 Limpieza de Datos")
+    st.markdown("""
+    En esta sección puedes aplicar una limpieza básica al conjunto de datos:
+    - Eliminar valores nulos
+    - Eliminar outliers con detección automatizada
+    """)
+
+    with st.form("form_limpieza"):
+        eliminar_nulos = st.checkbox("Eliminar valores nulos", value=True)
+        porcentaje_outliers = st.slider("Porcentaje de outliers a eliminar", 0.0, 0.2, 0.05, step=0.01)
+        aplicar = st.form_submit_button("Aplicar Limpieza")
+
+    if aplicar:
+        df_limpio = df.copy()
+
+        if eliminar_nulos:
+            df_limpio.dropna(inplace=True)
+
+        # Escalar y detectar outliers (solo columnas numéricas)
+        columnas_numericas = df_limpio.select_dtypes(include=['int64', 'float64']).columns
+        df_limpio[columnas_numericas] = scaler.fit_transform(df_limpio[columnas_numericas])
+
+        modelo_outliers = KNN(contamination=porcentaje_outliers)
+        modelo_outliers.fit(df_limpio)
+        etiquetas = modelo_outliers.labels_
+
+        df_limpio = df_limpio[etiquetas == 0].reset_index(drop=True)
+
+        st.session_state.df_limpio = df_limpio
+        st.session_state.limpieza_aplicada = True
+        st.success("✅ Limpieza aplicada correctamente.")
+        st.rerun()
+
+    if st.session_state.limpieza_aplicada and st.session_state.df_limpio is not None:
+        st.info("Los datos ya han sido limpiados. Puedes volver a aplicar la limpieza si lo deseas.")
+        
+        st.subheader("Vista previa de los datos originales")
+        st.dataframe(st.session_state.df.head())
+
+        st.subheader("Vista previa de los datos limpios")
+        st.dataframe(st.session_state.df_limpio.head())
 
 elif page == "Análisis Exploratorio":
     st.header("Análisis Exploratorio de Datos")
