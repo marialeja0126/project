@@ -142,7 +142,6 @@ if page == "Inicio":
     st.title(f"🔎 {page}: Visión General del Dataset") 
     st.markdown("Bienvenido/a. Aquí obtendrás una visión general de tus datos y podrás definir tu variable objetivo.")
     st.markdown("---")
-
     # 1. Resumen General del Dataset (sin cambios)
     st.header("1. Resumen General del Dataset")
     if df is not None and not df.empty:
@@ -235,51 +234,6 @@ if page == "Inicio":
             st.info("No se ha seleccionado una variable objetivo. Algunos análisis específicos del objetivo estarán desactivados o serán más generales.")
     st.markdown("---")
     
-    # 4. ¿Qué puedes hacer con esta aplicación? (Numeración actualizada)
-    st.header("4. ¿Qué puedes hacer con esta aplicación?")
-    # ... (código existente con el gráfico de ejemplo RM vs PRICE) ...
-    col_app_desc, col_example_plot = st.columns([2, 1])
-    with col_app_desc:
-        st.markdown(f"""
-        Esta aplicación te permite realizar un ciclo completo de análisis de datos:
-        - **{PAGES[1]}:** Un paso esencial para preparar tus datos.
-        - **{PAGES[2]}:** Para comprender las características fundamentales de tus datos, incluyendo análisis enfocados si defines una variable objetivo.
-        - **{PAGES[3]}:** Para construir y evaluar modelos predictivos.
-        - **{PAGES[4]}:** Información sobre la aplicación.
-        """)
-    with col_example_plot:
-        if df is not None and not df.empty:
-            # Gráfico de ejemplo RM vs PRICE (se mantiene como ejemplo genérico si esas columnas existen)
-            if 'RM' in df.columns and 'PRICE' in df.columns and \
-               pd.api.types.is_numeric_dtype(df['RM']) and \
-               pd.api.types.is_numeric_dtype(df['PRICE']):
-                st.markdown("##### 💡 Ejemplo de Insight (Genérico):")
-                st.markdown("###### Precio promedio por N° de Habitaciones")
-                # ... (código del gráfico RM vs PRICE sin cambios) ...
-                fig, ax = plt.subplots(figsize=(7, 5))
-                df_copy_plot = df.copy()
-                try:
-                    num_unique_rm = df_copy_plot['RM'].nunique()
-                    num_bins = min(5, num_unique_rm if num_unique_rm > 0 else 1)
-                    if num_bins > 1:
-                        df_copy_plot['RM_bin'] = pd.cut(df_copy_plot['RM'], bins=num_bins, include_lowest=True, duplicates='drop')
-                        grouped = df_copy_plot.groupby(pd.Categorical(df_copy_plot['RM_bin']), observed=False)['PRICE'].mean().reset_index()
-                        grouped['RM_bin'] = grouped['RM_bin'].astype(str) 
-                        sns.barplot(x='RM_bin', y='PRICE', data=grouped, ax=ax, palette="viridis", hue='RM_bin', dodge=False, legend=False)
-                        ax.set_xlabel('Habitaciones (agrupado)')
-                        ax.set_ylabel('Precio promedio')
-                        ax.tick_params(axis='x', rotation=45, ha='right')
-                        plt.tight_layout()
-                        st.pyplot(fig)
-                    elif num_unique_rm >= 1: 
-                        st.info("La columna 'RM' tiene muy pocos valores únicos para generar el gráfico de ejemplo.")
-                    else: 
-                        st.warning("La columna 'RM' no contiene datos válidos o suficientes para el gráfico de ejemplo.")
-                except Exception as e:
-                    st.warning(f"No se pudo generar el gráfico de ejemplo: {str(e)}")
-            else:
-                st.info("Dataset no contiene columnas 'RM' y 'PRICE' numéricas para el gráfico de ejemplo general.")
-    st.markdown("---")
 
     # 5. Próximos Pasos (Numeración actualizada)
     st.header(f"5. Próximos Pasos: {PAGES[1]} 🧼")
@@ -287,15 +241,6 @@ if page == "Inicio":
     En la **siguiente página ("{PAGES[1]}")**, nos adentraremos en el proceso de limpieza.
     Este es un paso fundamental para asegurar la calidad y fiabilidad de tus análisis y modelos predictivos.
     """)
-    st.markdown("---")
-    
-    with st.expander("✨ Ideas Adicionales para la Página de Inicio (Opcional)"):
-        # ... (código existente) ...
-        st.markdown("""
-        - **Visualización Rápida por Columna:** ...
-        - **Heatmap de Correlaciones (interactivo).** ...
-        - **Visualización de Patrones de Valores Faltantes (usando `missingno`).** ...
-        """)
 
 
 elif page == "Limpieza de Datos":
