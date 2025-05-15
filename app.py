@@ -12,6 +12,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.exceptions import NotFittedError 
 import streamlit as st
 
+
 # Configurar la página
 st.set_page_config(
     page_title="Analiza tu dataset",
