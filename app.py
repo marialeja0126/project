@@ -23,16 +23,6 @@ from xgboost import XGBRegressor, XGBClassifier # Asegúrate de tener xgboost in
 # Métricas
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-# Para cargar variables de entorno (si usas LLM o otras APIs)
-from dotenv import load_dotenv
-load_dotenv()
-import os # Para el LLM
-
-# Langchain (si lo mantienes)
-from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
-from langchain_anthropic import ChatAnthropic # o langchain_openai
-from langchain.agents.agent_types import AgentType
-
 
 # Configurar la página
 st.set_page_config(
