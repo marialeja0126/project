@@ -12,6 +12,27 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.exceptions import NotFittedError 
 import streamlit as st
 
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder # Añadido OneHotEncoder, LabelEncoder
+from sklearn.compose import ColumnTransformer # MUY IMPORTANTE para preprocesamiento
+from sklearn.pipeline import Pipeline # MUY IMPORTANTE para el flujo
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
+from xgboost import XGBRegressor, XGBClassifier # Asegúrate de tener xgboost instalado
+
+# Métricas
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+
+# Para cargar variables de entorno (si usas LLM o otras APIs)
+from dotenv import load_dotenv
+load_dotenv()
+import os # Para el LLM
+
+# Langchain (si lo mantienes)
+from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe_agent
+from langchain_anthropic import ChatAnthropic # o langchain_openai
+from langchain.agents.agent_types import AgentType
+
 
 # Configurar la página
 st.set_page_config(
@@ -21,7 +42,66 @@ st.set_page_config(
 )
 
 # Lista de páginas en orden
-PAGES = ["Inicio", "Limpieza de Datos", "Análisis Exploratorio", "Predicción", "Acerca de"]
+PAGES = ["Inicio", "Limpieza de Datos", "Análisis Exploratorio", "Entrenamiento y Predicción"]
+# Nuevas variables de sesión (o actualizadas)
+if 'target_variable' not in st.session_state: 
+    st.session_state.target_variable = None
+if 'feature_importances_df' not in st.session_state:
+    st.session_state.feature_importances_df = None
+if 'selected_model_type' not in st.session_state:
+    st.session_state.selected_model_type = None
+if 'trained_pipeline' not in st.session_state: 
+    st.session_state.trained_pipeline = None
+if 'model_performance_metrics' not in st.session_state: # Métricas del último modelo entrenado
+    st.session_state.model_performance_metrics = None
+if 'all_trained_model_metrics' not in st.session_state: # NUEVO: Para comparar todos los modelos
+    st.session_state.all_trained_model_metrics = {}
+if 'features_used_in_model' not in st.session_state: 
+    st.session_state.features_used_in_model = None
+if 'problem_type' not in st.session_state: 
+    st.session_state.problem_type = None
+if 'label_encoder_target' not in st.session_state: 
+    st.session_state.label_encoder_target = None
+if "reset_app" not in st.session_state:
+    st.session_state.reset_app = False
+
+# Limpiar estas nuevas variables de sesión en limpiar_app()
+def limpiar_app():
+    st.session_state.reset_app = True
+
+if st.session_state.reset_app:
+    keys_to_reset = ['data_uploaded', 'uploaded_file_content', 'df', 
+                     'limpieza_aplicada', 'df_limpio', 'scaler_fitted', 
+                     'fitted_scaler_instance', 'target_variable',
+                     'feature_importances_df', 'selected_model_type', # Nuevas
+                     'trained_pipeline', 'model_performance_metrics', # Nuevas
+                     'all_trained_model_metrics', # NUEVO
+                     'features_used_in_model', 'problem_type', 'label_encoder_target'] # Nuevas
+    # ... (resto de tu función limpiar_app)
+    for key in keys_to_reset:
+        if key in st.session_state:
+            del st.session_state[key]
+    
+    st.session_state.data_uploaded = False
+    st.session_state.data_uploaded = False
+    st.session_state.uploaded_file_content = None
+    st.session_state.df = None
+    st.session_state.page_index = 0 
+    st.session_state.limpieza_aplicada = False
+    st.session_state.df_limpio = None
+    st.session_state.reset_app = False
+    st.session_state.scaler_fitted = False
+    st.session_state.fitted_scaler_instance = None # Considerar si este scaler global sigue siendo necesario
+    st.session_state.target_variable = None
+    st.session_state.feature_importances_df = None
+    st.session_state.selected_model_type = None
+    st.session_state.trained_pipeline = None
+    st.session_state.model_performance_metrics = None
+    st.session_state.all_trained_model_metrics = {} # NUEVO
+    st.session_state.features_used_in_model = None
+    st.session_state.problem_type = None
+    st.session_state.label_encoder_target = None
+    st.rerun()
 
 # Inicializar estado
 if 'data_uploaded' not in st.session_state:
@@ -302,7 +382,7 @@ elif page == "Limpieza de Datos":
                         modelo_outliers.fit(df_temp_scaled[columnas_numericas_actuales])
                         etiquetas_outliers = modelo_outliers.labels_
                         outliers_eliminados = np.sum(etiquetas_outliers == 1)
-                        df_resultado_limpieza = df_resultado_limpieza[etiquetas_outliers == 0]
+                        df_resultado_limpieza = df_temp_scaled[etiquetas_outliers == 0]
                         st.write(f"Se identificaron y eliminaron {outliers_eliminados} filas como outliers.")
                         if df_resultado_limpieza.empty:
                             st.error("El dataset quedó vacío después de eliminar outliers.")
@@ -508,103 +588,317 @@ elif page == "Análisis Exploratorio":
             y_var = st.selectbox("Variable Y:", options=y_var_options, index=y_var_default_index, key="y_var_eda_general")
         if x_var and y_var:
             fig_sc_int, ax_sc_int = plt.subplots(figsize=(8,6))
-            hue_var_options = [None] + [col for col in all_cols_eda if col != x_var and col != y_var and df_eda[col].nunique() < 20] 
-            hue_var = st.selectbox("Variable para color (Hue, opcional):", options=hue_var_options, index=0, key="hue_var_eda_general")
+
+            hue_var_options = [None] + [col for col in all_cols_eda if col != x_var and col != y_var and df_eda[col].nunique() < 20]
+            hue_var = None
+            if hue_var_options != [None]:
+                hue_var = st.selectbox("Variable para color (Hue, opcional):", options=hue_var_options, index=0, key="hue_var_eda_general")
+
             try:
-                sns.scatterplot(data=df_eda, x=x_var, y=y_var, hue=hue_var if hue_var else None, ax=ax_sc_int, palette="magma", alpha=0.7)
+                sns.scatterplot(data=df_eda, x=x_var, y=y_var, hue=hue_var, ax=ax_sc_int, palette="magma", alpha=0.7)
                 ax_sc_int.set_title(f'{x_var} vs {y_var}' + (f' (Color por {hue_var})' if hue_var else ''))
                 if hue_var: ax_sc_int.legend(title=hue_var, bbox_to_anchor=(1.05, 1), loc='upper left')
                 plt.tight_layout(); st.pyplot(fig_sc_int); plt.clf()
             except Exception as e:
                 st.error(f"No se pudo generar el gráfico: {e}")
 
+# ... (código de las páginas anteriores) ...
 
-elif page == "Predicción":
-    st.title(f"🤖 {page}: Estimación de Precios") 
-    # ... (resto del código de Predicción sin cambios directos por target_variable,
-    # ya que la predicción depende de las features que espera el modelo) ...
-    df_for_pred_ranges = st.session_state.df_limpio if st.session_state.limpieza_aplicada and st.session_state.df_limpio is not None else df
-    if model is None:
-        st.error("El archivo del modelo ('models/housing_model.pkl') no se pudo cargar...")
+elif page == "Entrenamiento y Predicción":
+    st.title(f"🚀 {page}: Construye, Evalúa y Usa tu Modelo")
+
+    # --- PASO 0: PREPARACIÓN DE DATOS ---
+    if 'df' not in st.session_state or st.session_state.df is None:
+        st.warning("Por favor, primero carga un dataset en la página de 'Inicio'.")
         st.stop()
-    st.markdown("Ingresa las características de una vivienda para obtener una estimación de precio.")
-    expected_features_model = ['RM', 'LSTAT', 'PTRATIO', 'DIS'] 
-    st.info(f"El modelo actual espera las siguientes características en este orden: **{', '.join(expected_features_model)}**.")
 
-    if not st.session_state.scaler_fitted:
-        # ... (lógica de ajuste del scaler) ...
-        st.warning("El escalador (Scaler) se ajustará ahora...")
-        numeric_features_in_df = [f for f in expected_features_model if f in df.columns and pd.api.types.is_numeric_dtype(df[f])]
-        if not numeric_features_in_df:
-            st.error(f"Ninguna de las características esperadas por el modelo ({', '.join(expected_features_model)}) "
-                       "es numérica o se encuentra en el dataset cargado...")
-            st.stop()
-        if len(numeric_features_in_df) < len(expected_features_model):
-             st.warning(f"Algunas características esperadas por el modelo no son numéricas o no están en el dataset...")
-        try:
-            st.session_state.fitted_scaler_instance.fit(df[numeric_features_in_df])
-            st.session_state.scaler_fitted = True
-            st.success("Escalador ajustado.")
-        except Exception as e:
-            st.error(f"Error al ajustar el escalador: {e}.")
-            st.stop()
+    df_source = st.session_state.df_limpio if st.session_state.limpieza_aplicada and st.session_state.df_limpio is not None else st.session_state.df
     
-    with st.form("prediction_form"):
-        # ... (formulario de predicción) ...
-        st.write("Por favor, ingresa los valores para las características requeridas por el modelo:")
-        input_values = {}
-        cols_form = st.columns(2)
-        for i, feature in enumerate(expected_features_model):
-            with cols_form[i % 2]: 
-                if feature in df_for_pred_ranges.columns and pd.api.types.is_numeric_dtype(df_for_pred_ranges[feature]):
-                    min_val = float(df_for_pred_ranges[feature].min())
-                    max_val = float(df_for_pred_ranges[feature].max())
-                    mean_val = float(df_for_pred_ranges[feature].mean())
-                    step_val = 0.01 if (max_val - min_val) < 10 else 0.1 # ...
-                    if feature == 'RM' and min_val.is_integer() and max_val.is_integer():
-                         # ... (selectbox RM) ...
-                         rm_min_val = int(min_val); rm_max_val = int(max_val)
-                         if rm_min_val >= rm_max_val: rm_max_val = rm_min_val + 1 
-                         default_rm_index = np.clip(int(mean_val) - rm_min_val, 0, rm_max_val - rm_min_val) if rm_max_val > rm_min_val else 0
-                         input_values[feature] = st.selectbox(f"{feature}:", list(range(rm_min_val, rm_max_val + 1)), index=default_rm_index)
-                    else: 
-                        input_values[feature] = st.slider(f"{feature}:", min_val, max_val, value=mean_val, step=step_val)
-                else:
-                    input_values[feature] = st.number_input(f"{feature} (valor numérico):", value=0.0, format="%.2f",
-                                                             help=f"'{feature}' no se encontró como numérica...")
-        submit_button = st.form_submit_button("🏷️ Predecir Precio")
+    if df_source.empty:
+        st.warning("El dataset está vacío. Verifica los pasos anteriores.")
+        st.stop()
 
-    if submit_button:
-        # ... (lógica de predicción) ...
-        if not st.session_state.scaler_fitted:
-            st.error("El escalador no está ajustado...")
-        else:
-            try:
-                input_data_list = [input_values[feature] for feature in expected_features_model]
-                input_df_for_scaling = pd.DataFrame([input_data_list], columns=expected_features_model)
-                numeric_features_scaler_was_fitted_with = st.session_state.fitted_scaler_instance.feature_names_in_.tolist() \
-                    if hasattr(st.session_state.fitted_scaler_instance, 'feature_names_in_') else \
-                    df[expected_features_model].select_dtypes(include=np.number).columns.tolist()
-                input_df_to_scale_actual = input_df_for_scaling[numeric_features_scaler_was_fitted_with]
-                input_scaled_values = st.session_state.fitted_scaler_instance.transform(input_df_to_scale_actual)
-                prediction = model.predict(input_scaled_values)[0]
-                st.success(f"💰 El precio estimado para la vivienda es: **${prediction:,.2f}k**")
-            except NotFittedError:
-                 st.error("El Escalador (Scaler) no ha sido ajustado (fitted) correctamente...")
-            except ValueError as ve:
-                st.error(f"Error al escalar o predecir: {ve}...")
-            except Exception as e:
-                st.error(f"Ocurrió un error durante la predicción: {e}")
+    target_var_name = st.session_state.get('target_variable', None)
+    if not target_var_name or target_var_name not in df_source.columns:
+        st.error("Variable objetivo no definida o no encontrada. Por favor, selecciónala en la página de 'Inicio'.")
+        st.stop()
 
+    st.info(f"Usando variable objetivo: **{target_var_name}**")
+    y = df_source[target_var_name].copy() # Series para la variable objetivo
+    X_original = df_source.drop(columns=[target_var_name]).copy() # DataFrame de características originales
 
-elif page == "Acerca de":
-    st.title(f"ℹ️ {page} Esta Aplicación") 
-    # ... (código existente) ...
-    st.markdown("""
-    Esta aplicación fue desarrollada para demostrar un flujo interactivo de análisis de datos y predicción...
-    **Autor/Desarrollador:** Adaptado y mejorado por Asistente AI. ¡Personaliza esta sección!
-    **Versión:** 1.2.0 (Mayo 2025) 
-    **Consideraciones Importantes:** ...
-    """)
+    # Determinar tipo de problema y preprocesar 'y' para clasificación si es necesario
+    if pd.api.types.is_numeric_dtype(y):
+        st.session_state.problem_type = "Regression"
+    elif y.nunique() > 1:
+        st.session_state.problem_type = "Classification"
+        le_target = LabelEncoder()
+        y = pd.Series(le_target.fit_transform(y), name=target_var_name) # y ahora es numérico
+        st.session_state.label_encoder_target = le_target # Guardar para decodificar predicciones
+        st.caption(f"Variable objetivo '{target_var_name}' codificada para clasificación. Clases originales: {list(le_target.classes_)}")
+    else:
+        st.error("La variable objetivo no es adecuada (p.ej., tiene un solo valor único).")
+        st.stop()
+    st.write(f"Tipo de problema detectado: **{st.session_state.problem_type}**")
     st.markdown("---")
-    st.markdown(f"Fecha y Hora Actual: {pd.Timestamp.now(tz='America/Bogota').strftime('%Y-%m-%d %H:%M:%S %Z')}")
+
+    # --- PASO 1: CÁLCULO Y SELECCIÓN DE CARACTERÍSTICAS ---
+    st.header("1. Selección de Características")
+    
+    # Usar solo columnas numéricas o categóricas simples para el cálculo de importancia inicial
+    # Para RandomForest, es mejor tener todo numérico.
+    X_for_importance = X_original.copy()
+    categorical_cols_for_imp = X_for_importance.select_dtypes(include=['object', 'category']).columns
+    
+    # Simplificación: Para el cálculo de importancia, se usarán solo las numéricas o se intentará una codificación simple.
+    # Una opción es usar RandomForest que puede dar importancia incluso con OHE, pero el OHE puede diluir la importancia.
+    # Otra es usar SelectKBest con f_regression/chi2.
+    # Por simplicidad, usaremos RF en las numéricas y mostraremos una advertencia para las categóricas en este paso.
+    
+    numeric_cols_for_imp = X_for_importance.select_dtypes(include=np.number).columns
+    if not numeric_cols_for_imp.empty:
+        X_numeric_for_imp = X_for_importance[numeric_cols_for_imp]
+        
+        if st.button("Calcular Importancia de Características Numéricas (con Random Forest)", key="calc_imp_btn"):
+            with st.spinner("Calculando..."):
+                if st.session_state.problem_type == "Regression":
+                    model_imp = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+                else: # Classification
+                    model_imp = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+                
+                try:
+                    model_imp.fit(X_numeric_for_imp, y) # y ya está codificada si es clasificación
+                    importances = model_imp.feature_importances_
+                    st.session_state.feature_importances_df = pd.DataFrame({
+                        'Característica': X_numeric_for_imp.columns,
+                        'Importancia': importances
+                    }).sort_values(by='Importancia', ascending=False).reset_index(drop=True)
+                except Exception as e:
+                    st.error(f"Error al calcular importancia: {e}")
+                    st.session_state.feature_importances_df = None
+        
+        if st.session_state.feature_importances_df is not None:
+            st.subheader("Importancia de Características Numéricas:")
+            num_to_show = st.slider("Mostrar N características más importantes:", 
+                                    min_value=1, 
+                                    max_value=len(st.session_state.feature_importances_df), 
+                                    value=min(10, len(st.session_state.feature_importances_df)),
+                                    key="num_imp_feat_slider")
+            
+            fig_imp, ax_imp = plt.subplots(figsize=(10, num_to_show * 0.5 if num_to_show * 0.5 > 4 else 4)) # Ajustar tamaño
+            top_features_df = st.session_state.feature_importances_df.head(num_to_show)
+            sns.barplot(x='Importancia', y='Característica', data=top_features_df, ax=ax_imp, palette="viridis")
+            ax_imp.set_title(f"Top {num_to_show} Características Numéricas Más Importantes")
+            plt.tight_layout()
+            st.pyplot(fig_imp)
+            plt.clf()
+
+            default_selected_features = st.session_state.feature_importances_df['Característica'].head(min(5, len(st.session_state.feature_importances_df))).tolist()
+            st.info(f"Sugerencia (Top {len(default_selected_features)} numéricas): {', '.join(default_selected_features)}")
+        else:
+            default_selected_features = X_original.columns.tolist()[:3] # Fallback
+    else:
+        st.warning("No hay características numéricas para calcular la importancia con el método actual. "
+                   "Se usarán todas las características disponibles para la selección.")
+        default_selected_features = X_original.columns.tolist()[:3] # Fallback
+
+    if not categorical_cols_for_imp.empty:
+        st.caption(f"Características categóricas encontradas: {', '.join(categorical_cols_for_imp)}. "
+                   "Estas se codificarán (One-Hot Encoding) si las seleccionas para el modelo. "
+                   "Su importancia no se calculó directamente en el gráfico anterior.")
+
+    # Selección de características por el usuario (de las originales)
+    st.session_state.features_used_in_model = st.multiselect(
+        "Selecciona las características para entrenar el modelo (numéricas y categóricas):",
+        options=X_original.columns.tolist(),
+        default=default_selected_features,
+        key="feature_selector_model"
+    )
+
+    if not st.session_state.features_used_in_model:
+        st.warning("Por favor, selecciona al menos una característica para entrenar.")
+        st.stop()
+    st.markdown("---")
+
+    # --- PASO 2: SELECCIÓN DEL TIPO DE MODELO ---
+    st.header("2. Selección y Configuración del Modelo")
+    model_choices = ["Random Forest", "Decision Tree", "XGBoost"]
+    st.session_state.selected_model_type = st.selectbox("Elige el tipo de modelo:", model_choices, key="model_type_selector")
+
+    # (Opcional) Hiperparámetros básicos para cada modelo
+    # Ejemplo para Random Forest:
+    # if st.session_state.selected_model_type == "Random Forest":
+    #     n_estimators = st.slider("Número de árboles (n_estimators):", 50, 500, 100, step=10)
+    #     max_depth = st.slider("Profundidad máxima (max_depth):", 3, 20, 10, step=1)
+    st.markdown("---")
+
+    # --- PASO 3: ENTRENAMIENTO DEL MODELO ---
+    st.header("3. Entrenamiento y Evaluación del Modelo")
+    if st.button(f"🚀 Entrenar Modelo: {st.session_state.selected_model_type}", key="train_btn"):
+        with st.spinner(f"Entrenando {st.session_state.selected_model_type}..."):
+            X_selected_df = X_original[st.session_state.features_used_in_model].copy()
+
+            # Identificar tipos de columnas para el ColumnTransformer
+            numeric_features = X_selected_df.select_dtypes(include=np.number).columns.tolist()
+            categorical_features = X_selected_df.select_dtypes(include=['object', 'category']).columns.tolist()
+
+            # Crear preprocesador
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ('num', MinMaxScaler(), numeric_features), # Escalar numéricas
+                    ('cat', OneHotEncoder(handle_unknown='ignore', drop='first'), categorical_features) # OHE para categóricas
+                ], 
+                remainder='passthrough' # Dejar otras columnas (si las hubiera, aunque no debería si seleccionamos bien)
+            )
+
+            # Definir el modelo
+            model_params = {'random_state': 42} # Parámetros comunes
+            if st.session_state.problem_type == "Regression":
+                if st.session_state.selected_model_type == "Random Forest":
+                    model = RandomForestRegressor(**model_params) # Añadir n_estimators, max_depth si se configuraron
+                elif st.session_state.selected_model_type == "Decision Tree":
+                    model = DecisionTreeRegressor(**model_params)
+                elif st.session_state.selected_model_type == "XGBoost":
+                    model = XGBRegressor(**model_params, objective='reg:squarederror') # objective para regresión
+            else: # Classification
+                if st.session_state.selected_model_type == "Random Forest":
+                    model = RandomForestClassifier(**model_params)
+                elif st.session_state.selected_model_type == "Decision Tree":
+                    model = DecisionTreeClassifier(**model_params)
+                elif st.session_state.selected_model_type == "XGBoost":
+                    model = XGBClassifier(**model_params, use_label_encoder=False, eval_metric='logloss' if y.nunique()==2 else 'mlogloss')
+
+            # Crear y entrenar el Pipeline
+            st.session_state.trained_pipeline = Pipeline(steps=[
+                ('preprocessor', preprocessor),
+                ('model', model)
+            ])
+
+            X_train, X_test, y_train, y_test = train_test_split(X_selected_df, y, test_size=0.25, random_state=42, stratify=y if st.session_state.problem_type == "Classification" and y.nunique() > 1 else None)
+            
+            try:
+                st.session_state.trained_pipeline.fit(X_train, y_train)
+                y_pred_test = st.session_state.trained_pipeline.predict(X_test)
+                
+                metrics = {}
+                if st.session_state.problem_type == "Regression":
+                    metrics['R-squared'] = r2_score(y_test, y_pred_test)
+                    metrics['MSE'] = mean_squared_error(y_test, y_pred_test)
+                    metrics['RMSE'] = np.sqrt(metrics['MSE'])
+                else: # Classification
+                    # Si y_test fue codificada y el pipeline predice la clase codificada:
+                    metrics['Accuracy'] = accuracy_score(y_test, y_pred_test)
+                    metrics['Precision'] = precision_score(y_test, y_pred_test, average='weighted', zero_division=0)
+                    metrics['Recall'] = recall_score(y_test, y_pred_test, average='weighted', zero_division=0)
+                    metrics['F1-Score'] = f1_score(y_test, y_pred_test, average='weighted', zero_division=0)
+                    # Matriz de confusión (necesita clases decodificadas para etiquetas)
+                    # cm = confusion_matrix(y_test, y_pred_test) # y_test son las clases codificadas
+                    # if st.session_state.label_encoder_target:
+                    #     cm_labels = st.session_state.label_encoder_target.classes_
+                    #     # Graficar CM
+                
+                st.session_state.model_performance_metrics = metrics
+                st.success(f"Modelo '{st.session_state.selected_model_type}' entrenado y evaluado exitosamente!")
+                st.balloons()
+
+            except Exception as e:
+                st.error(f"Error durante el entrenamiento o evaluación: {e}")
+                st.session_state.trained_pipeline = None
+                st.session_state.model_performance_metrics = None
+    
+    # Mostrar métricas si el modelo está entrenado
+    if st.session_state.trained_pipeline and st.session_state.model_performance_metrics:
+        st.subheader("Métricas de Desempeño del Modelo (en conjunto de prueba):")
+        for metric_name, metric_value in st.session_state.model_performance_metrics.items():
+            st.write(f"- **{metric_name}:** {metric_value:.4f}")
+        
+        # (Opcional) Mostrar matriz de confusión para clasificación
+        if st.session_state.problem_type == "Classification":
+            y_pred_test_for_cm = st.session_state.trained_pipeline.predict(X_test) # X_test ya está definida arriba
+            # y_test_for_cm = y_test # y_test ya está definida arriba y es la codificada
+            
+            # Decodificar etiquetas para la matriz de confusión si es posible
+            y_test_decoded_cm = st.session_state.label_encoder_target.inverse_transform(y_test) if st.session_state.label_encoder_target else y_test
+            y_pred_decoded_cm = st.session_state.label_encoder_target.inverse_transform(y_pred_test_for_cm) if st.session_state.label_encoder_target else y_pred_test_for_cm
+            
+            cm_labels_display = st.session_state.label_encoder_target.classes_ if st.session_state.label_encoder_target else np.unique(np.concatenate((y_test_decoded_cm, y_pred_decoded_cm)))
+
+            cm = confusion_matrix(y_test_decoded_cm, y_pred_decoded_cm, labels=cm_labels_display)
+            fig_cm, ax_cm = plt.subplots()
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=cm_labels_display, yticklabels=cm_labels_display, ax=ax_cm)
+            ax_cm.set_xlabel('Predicho')
+            ax_cm.set_ylabel('Verdadero')
+            ax_cm.set_title('Matriz de Confusión')
+            st.pyplot(fig_cm)
+            plt.clf()
+        st.markdown("---")
+
+    # --- PASO 4: REALIZAR NUEVAS PREDICCIONES ---
+    if st.session_state.trained_pipeline:
+        st.header("4. Realizar Nuevas Predicciones")
+        st.markdown("Ingresa los valores para las características con las que se entrenó el modelo:")
+
+        # Usar las características originales que el usuario seleccionó
+        features_for_input = st.session_state.features_used_in_model 
+        
+        with st.form("new_prediction_form_custom_model"):
+            input_data_dict = {}
+            form_cols = st.columns(2) # Para organizar el formulario
+            
+            for i, feature_name in enumerate(features_for_input):
+                with form_cols[i % 2]:
+                    original_col_series = X_original[feature_name] # Tomar de X_original para rangos y tipo
+                    if pd.api.types.is_numeric_dtype(original_col_series):
+                        min_val = float(original_col_series.min())
+                        max_val = float(original_col_series.max())
+                        mean_val = float(original_col_series.mean())
+                        # Asegurar que min_val <= mean_val <= max_val
+                        if not (min_val <= mean_val <= max_val): mean_val = min_val 
+                        input_data_dict[feature_name] = st.number_input(
+                            f"{feature_name}", 
+                            min_value=min_val, 
+                            max_value=max_val, 
+                            value=mean_val, 
+                            key=f"pred_input_{feature_name}"
+                        )
+                    elif pd.api.types.is_categorical_dtype(original_col_series) or original_col_series.dtype == 'object':
+                        unique_values = original_col_series.unique().tolist()
+                        input_data_dict[feature_name] = st.selectbox(
+                            f"{feature_name}", 
+                            options=unique_values, 
+                            index=0, 
+                            key=f"pred_input_{feature_name}"
+                        )
+                    else: # Fallback para tipos raros
+                        input_data_dict[feature_name] = st.text_input(f"{feature_name}", key=f"pred_input_{feature_name}")
+            
+            submit_pred_btn = st.form_submit_button("✨ Obtener Predicción")
+
+        if submit_pred_btn:
+            try:
+                # Crear DataFrame con los datos de entrada en el orden correcto
+                input_df = pd.DataFrame([input_data_dict], columns=features_for_input)
+                
+                # El pipeline se encargará del preprocesamiento (OHE, escalado)
+                prediction_coded = st.session_state.trained_pipeline.predict(input_df)
+                prediction_proba = None
+                if hasattr(st.session_state.trained_pipeline, "predict_proba"):
+                    prediction_proba = st.session_state.trained_pipeline.predict_proba(input_df)
+
+                # Decodificar si es clasificación y tenemos el LabelEncoder
+                final_prediction_display = prediction_coded[0]
+                if st.session_state.problem_type == "Classification" and st.session_state.label_encoder_target:
+                    final_prediction_display = st.session_state.label_encoder_target.inverse_transform(prediction_coded)[0]
+
+                st.success(f"Resultado de la Predicción: **{final_prediction_display}**")
+
+                if prediction_proba is not None and st.session_state.problem_type == "Classification":
+                    st.write("Probabilidades por clase:")
+                    classes_ = st.session_state.label_encoder_target.classes_ if st.session_state.label_encoder_target else \
+                               st.session_state.trained_pipeline.named_steps['model'].classes_ # Fallback
+                    proba_df = pd.DataFrame(prediction_proba, columns=classes_)
+                    st.dataframe(proba_df)
+
+            except Exception as e:
+                st.error(f"Error al realizar la predicción: {e}")
+                st.error("Asegúrate de que los datos de entrada sean válidos y compatibles.")
