@@ -146,7 +146,27 @@ if not st.session_state.data_uploaded:
     st.title("🔎 Analiza tu dataset")
     st.markdown("### Por favor, sube un archivo CSV para comenzar.")
     uploaded_file = st.file_uploader("Subir archivo de datos", type=["csv"], key="file_uploader_main")
-    
+    st.markdown("""
+                
+Con esta aplicación, podrás de forma sencilla:
+                
+🔍 **Explorar tu Información**  
+Sube tu archivo y obtén un resumen rápido, visualiza tus datos y selecciona tu variable objetivo.
+
+✨ **Preparar tus Datos**  
+Limpia tu información eliminando datos faltantes o valores atípicos para análisis más precisos.
+
+📊 **Descubrir Insights**  
+Visualiza patrones y correlaciones entre las variables.
+
+🧠 **Entrenar tus Propios Modelos**  
+Te ayudaremos a identificar las variables más importantes y podrás entrenar modelos predictivos (como Random Forest, Árboles de Decisión o XGBoost) para tu variable objetivo.
+
+🎯 **Comparar y Predecir**  
+Compara cuál modelo funciona mejor con tus datos y úsalo para hacer nuevas predicciones.
+""")
+
+
     if uploaded_file is not None:
         st.session_state.uploaded_file_content = uploaded_file 
         st.session_state.data_uploaded = True
@@ -235,15 +255,43 @@ if page == "Inicio":
             else:
                 st.success("✅ ¡Excelente! No se encontraron valores faltantes en tu dataset.")
         with st.expander("📊 Ver Estadísticas Descriptivas (Columnas Numéricas)"):
-            # ... (código existente) ...
+            st.markdown("""
+
+Estas métricas te ofrecen un resumen general del comportamiento de cada variable numérica en tu conjunto de datos:
+
+- **count**: Número de valores no nulos (sin contar vacíos).
+- **mean**: Promedio de los valores.
+- **std**: Desviación estándar, indica qué tanto varían los datos respecto a la media.
+- **min**: Valor mínimo observado.
+- **25% (Q1)**: Primer cuartil, el 25% de los datos son menores o iguales a este valor.
+- **50% (Q2 / mediana)**: Valor central de los datos, el 50% de los valores están por debajo y el 50% por encima.
+- **75% (Q3)**: Tercer cuartil, el 75% de los datos son menores o iguales a este valor.
+- **max**: Valor máximo observado.
+
+Estas estadísticas son útiles para entender la distribución, identificar posibles outliers y guiar decisiones de limpieza o transformación de los datos.
+""")
+
             numeric_cols = df.select_dtypes(include=np.number)
             if not numeric_cols.empty:
                 st.dataframe(numeric_cols.describe().T)
             else:
                 st.info("No hay columnas numéricas para mostrar estadísticas descriptivas.")
         with st.expander("📝 Ver Estadísticas Descriptivas (Columnas Categóricas/Objeto)"):
-            # ... (código existente) ...
+
             categorical_cols = df.select_dtypes(include=['object', 'category'])
+            st.markdown("""
+### 🧾 Estadísticas Descriptivas (Columnas Categóricas / Objeto)
+
+Estas métricas permiten entender la distribución general de las variables no numéricas:
+
+- **count**: Número de valores no nulos (sin contar vacíos).
+- **unique**: Cantidad de valores únicos distintos en la columna.
+- **top**: Valor más frecuente (modo).
+- **freq**: Frecuencia del valor más común (cuántas veces aparece el top).
+
+Estas estadísticas son útiles para identificar la categoría predominante, verificar la diversidad de respuestas y detectar posibles valores anómalos o dominantes en tus variables categóricas.
+""")
+
             if not categorical_cols.empty:
                 st.dataframe(categorical_cols.describe().T)
             else:
@@ -265,7 +313,7 @@ if page == "Inicio":
     st.markdown("---")
 
     # 3. Definir Variable Objetivo (NUEVO)
-    st.header("3. Definir Variable Objetivo (Opcional)")
+    st.header("3. Definir Variable Objetivo")
     st.markdown("""
     Seleccionar una variable objetivo ayudará a enfocar algunos de los análisis y visualizaciones 
     en las páginas siguientes, especialmente en la sección de 'Análisis Exploratorio'.
@@ -303,15 +351,7 @@ if page == "Inicio":
                  st.rerun()
         else:
             st.info("No se ha seleccionado una variable objetivo. Algunos análisis específicos del objetivo estarán desactivados o serán más generales.")
-    st.markdown("---")
-    
 
-    # 5. Próximos Pasos (Numeración actualizada)
-    st.header(f"5. Próximos Pasos: {PAGES[1]} 🧼")
-    st.info(f"""
-    En la **siguiente página ("{PAGES[1]}")**, nos adentraremos en el proceso de limpieza.
-    Este es un paso fundamental para asegurar la calidad y fiabilidad de tus análisis y modelos predictivos.
-    """)
 
 
 elif page == "Limpieza de Datos":
@@ -520,7 +560,23 @@ elif page == "Análisis Exploratorio":
     st.header("🔬 Análisis Generales del Dataset")
 
     st.subheader("Matriz de Correlación (Columnas Numéricas)")
-    # ... (código existente de matriz de correlación, sin cambios) ...
+    st.markdown("""
+### 🔗 ¿Cómo Interpretar una Matriz de Correlación?
+
+Una matriz de correlación muestra qué tan relacionadas están dos variables numéricas entre sí. Los valores van de **-1 a 1**:
+
+- **1**: Correlación positiva perfecta – cuando una variable sube, la otra también.
+- **0**: Sin correlación – no hay una relación lineal aparente.
+- **-1**: Correlación negativa perfecta – cuando una variable sube, la otra baja.
+
+#### Consejos para interpretar:
+- Busca valores cercanos a **1 o -1** para identificar relaciones fuertes.
+- Una correlación alta no siempre significa causalidad.
+- Puedes usar esto para identificar variables redundantes o relevantes para modelos predictivos.
+
+Puedes hacer clic en los valores o usar un heatmap para ver rápidamente qué pares de variables tienen relaciones fuertes o débiles.
+""")
+
     numeric_cols_eda = df_eda.select_dtypes(include=np.number)
     if len(numeric_cols_eda.columns) > 1:
         corr = numeric_cols_eda.corr()
@@ -562,8 +618,7 @@ elif page == "Análisis Exploratorio":
         ax_dist_gen.set_title(f'Distribución de {selected_col_dist}')
         plt.tight_layout(); st.pyplot(fig_dist_gen); plt.clf()
 
-    st.subheader("Exploración Interactiva (Scatter Plot Bivariado)")
-    # ... (código existente de exploración interactiva, sin cambios importantes) ...
+    st.subheader("Exploración Interactiva")
     if len(df_eda.columns) > 1:
         col1_exp, col2_exp = st.columns(2)
         all_cols_eda = df_eda.columns.tolist()
