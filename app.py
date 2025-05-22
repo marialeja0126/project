@@ -1,7 +1,3 @@
-"""
-APLICACIÓN STREAMLIT PARA DESPLIEGUE DEL MODELO DE PRECIOS DE VIVIENDAS
-"""
-
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,12 +9,12 @@ from sklearn.exceptions import NotFittedError
 import streamlit as st
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder # Añadido OneHotEncoder, LabelEncoder
-from sklearn.compose import ColumnTransformer # MUY IMPORTANTE para preprocesamiento
-from sklearn.pipeline import Pipeline # MUY IMPORTANTE para el flujo
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, LabelEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from xgboost import XGBRegressor, XGBClassifier # Asegúrate de tener xgboost instalado
+from xgboost import XGBRegressor, XGBClassifier
 
 # Métricas
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
@@ -33,7 +29,7 @@ st.set_page_config(
 
 # Lista de páginas en orden
 PAGES = ["Inicio", "Limpieza de Datos", "Análisis Exploratorio", "Entrenamiento y Predicción"]
-# Nuevas variables de sesión (o actualizadas)
+# Variables de sesión
 if 'target_variable' not in st.session_state: 
     st.session_state.target_variable = None
 if 'feature_importances_df' not in st.session_state:
@@ -42,9 +38,9 @@ if 'selected_model_type' not in st.session_state:
     st.session_state.selected_model_type = None
 if 'trained_pipeline' not in st.session_state: 
     st.session_state.trained_pipeline = None
-if 'model_performance_metrics' not in st.session_state: # Métricas del último modelo entrenado
+if 'model_performance_metrics' not in st.session_state:
     st.session_state.model_performance_metrics = None
-if 'all_trained_model_metrics' not in st.session_state: # NUEVO: Para comparar todos los modelos
+if 'all_trained_model_metrics' not in st.session_state:
     st.session_state.all_trained_model_metrics = {}
 if 'features_used_in_model' not in st.session_state: 
     st.session_state.features_used_in_model = None
@@ -55,7 +51,7 @@ if 'label_encoder_target' not in st.session_state:
 if "reset_app" not in st.session_state:
     st.session_state.reset_app = False
 
-# Limpiar estas nuevas variables de sesión en limpiar_app()
+# Para limpiar la app
 def limpiar_app():
     st.session_state.reset_app = True
 
@@ -63,11 +59,10 @@ if st.session_state.reset_app:
     keys_to_reset = ['data_uploaded', 'uploaded_file_content', 'df', 
                      'limpieza_aplicada', 'df_limpio', 'scaler_fitted', 
                      'fitted_scaler_instance', 'target_variable',
-                     'feature_importances_df', 'selected_model_type', # Nuevas
-                     'trained_pipeline', 'model_performance_metrics', # Nuevas
-                     'all_trained_model_metrics', # NUEVO
-                     'features_used_in_model', 'problem_type', 'label_encoder_target'] # Nuevas
-    # ... (resto de tu función limpiar_app)
+                     'feature_importances_df', 'selected_model_type',
+                     'trained_pipeline', 'model_performance_metrics',
+                     'all_trained_model_metrics',
+                     'features_used_in_model', 'problem_type', 'label_encoder_target']
     for key in keys_to_reset:
         if key in st.session_state:
             del st.session_state[key]
@@ -81,13 +76,13 @@ if st.session_state.reset_app:
     st.session_state.df_limpio = None
     st.session_state.reset_app = False
     st.session_state.scaler_fitted = False
-    st.session_state.fitted_scaler_instance = None # Considerar si este scaler global sigue siendo necesario
+    st.session_state.fitted_scaler_instance = None # Este scaler global sigue siendo necesario?
     st.session_state.target_variable = None
     st.session_state.feature_importances_df = None
     st.session_state.selected_model_type = None
     st.session_state.trained_pipeline = None
     st.session_state.model_performance_metrics = None
-    st.session_state.all_trained_model_metrics = {} # NUEVO
+    st.session_state.all_trained_model_metrics = {}
     st.session_state.features_used_in_model = None
     st.session_state.problem_type = None
     st.session_state.label_encoder_target = None
@@ -112,19 +107,19 @@ if 'scaler_fitted' not in st.session_state:
     st.session_state.scaler_fitted = False
 if 'fitted_scaler_instance' not in st.session_state: 
     st.session_state.fitted_scaler_instance = None
-if 'target_variable' not in st.session_state: # NUEVO: para la variable objetivo
+if 'target_variable' not in st.session_state:
     st.session_state.target_variable = None
 
 
-# Función para reiniciar la app
+# Reiniciar la app
 def limpiar_app():
     st.session_state.reset_app = True
 
-# Ejecutar reinicio si se marcó
+# Ejecutar reinicio si se da click en el botón
 if st.session_state.reset_app:
     keys_to_reset = ['data_uploaded', 'uploaded_file_content', 'df', 
                      'limpieza_aplicada', 'df_limpio', 'scaler_fitted', 
-                     'fitted_scaler_instance', 'target_variable'] # Añadido target_variable
+                     'fitted_scaler_instance', 'target_variable']
     for key in keys_to_reset:
         if key in st.session_state:
             del st.session_state[key]
@@ -138,7 +133,7 @@ if st.session_state.reset_app:
     st.session_state.reset_app = False
     st.session_state.scaler_fitted = False
     st.session_state.fitted_scaler_instance = None
-    st.session_state.target_variable = None # Reseteado
+    st.session_state.target_variable = None
     st.rerun()
 
 # Subida de archivo si no hay datos
@@ -233,7 +228,6 @@ if page == "Inicio":
     st.title(f"🔎 {page}: Visión General del Dataset") 
     st.markdown("Bienvenido/a. Aquí obtendrás una visión general de tus datos y podrás definir tu variable objetivo.")
     st.markdown("---")
-    # 1. Resumen General del Dataset (sin cambios)
     st.header("1. Resumen General del Dataset")
     if df is not None and not df.empty:
         col_summary1, col_summary2 = st.columns(2)
@@ -300,10 +294,8 @@ Estas estadísticas son útiles para identificar la categoría predominante, ver
     else:
         st.warning("El DataFrame está vacío o no se ha cargado correctamente.")
 
-    # 2. Vista Previa del Dataset (sin cambios)
     st.header("2. Vista Previa del Dataset")
     if df is not None and not df.empty:
-        # ... (código existente slider y dataframe) ...
         num_rows_preview = st.slider(
             "Selecciona el número de filas para previsualizar:",
             min_value=1, max_value=min(20, df.shape[0]), 
@@ -312,7 +304,6 @@ Estas estadísticas son útiles para identificar la categoría predominante, ver
         st.dataframe(df.head(num_rows_preview), use_container_width=True)
     st.markdown("---")
 
-    # 3. Definir Variable Objetivo (NUEVO)
     st.header("3. Definir Variable Objetivo")
     st.markdown("""
     Seleccionar una variable objetivo ayudará a enfocar algunos de los análisis y visualizaciones 
@@ -341,7 +332,7 @@ Estas estadísticas son útiles para identificar la categoría predominante, ver
         # Actualizar solo si hay un cambio real para evitar reruns innecesarios si el valor es el mismo
         if selected_target != st.session_state.target_variable:
             st.session_state.target_variable = selected_target
-            st.rerun() # Rerun para que el estado se actualice y se refleje en la UI
+            st.rerun() # Rerun para que el estado se actualice
 
         if st.session_state.target_variable:
             st.success(f"Variable objetivo seleccionada: **{st.session_state.target_variable}**")
@@ -356,8 +347,6 @@ Estas estadísticas son útiles para identificar la categoría predominante, ver
 
 elif page == "Limpieza de Datos":
     st.title(f"🧹 {page}: Preparación de Datos") 
-    # ... (resto del código de Limpieza de Datos sin cambios relevantes a target_variable aquí) ...
-    # Importante: Si la limpieza elimina la variable objetivo, el usuario será notificado en la página de EDA.
     st.markdown("""
     En esta sección puedes aplicar una limpieza básica al conjunto de datos. 
     Los cambios aquí afectarán las páginas subsiguientes de análisis y predicción.
@@ -391,7 +380,6 @@ elif page == "Limpieza de Datos":
             df_resultado_limpieza = df_para_limpiar.copy()
             original_shape = df_resultado_limpieza.shape
             if eliminar_nulos:
-                # ... (lógica de eliminar nulos) ...
                 nulos_antes = df_resultado_limpieza.isnull().sum().sum()
                 df_resultado_limpieza.dropna(inplace=True)
                 nulos_despues = df_resultado_limpieza.isnull().sum().sum()
@@ -401,7 +389,6 @@ elif page == "Limpieza de Datos":
                     st.stop()
 
             if porcentaje_outliers > 0 and not df_resultado_limpieza.empty and columnas_numericas_limpieza:
-                # ... (lógica de outliers) ...
                 columnas_numericas_actuales = df_resultado_limpieza.select_dtypes(include=np.number).columns
                 if not columnas_numericas_actuales.empty:
                     df_temp_scaled = df_resultado_limpieza.copy()
@@ -430,7 +417,6 @@ elif page == "Limpieza de Datos":
         st.rerun() 
 
     if st.session_state.limpieza_aplicada and st.session_state.df_limpio is not None:
-        # ... (comparación de datos) ...
         st.subheader("Comparación de Datos")
         col_orig, col_limp = st.columns(2)
         with col_orig:
@@ -549,14 +535,12 @@ elif page == "Análisis Exploratorio":
                     plt.clf()
             else:
                 st.info(f"No hay variables numéricas para generar box plots contra '{target_var_name}'.")
-            # Podrías añadir aquí comparaciones con otras variables categóricas (e.g., stacked bar charts)
         st.markdown("---")
     else:
         st.info("No se ha seleccionado una variable objetivo en la página de 'Inicio'. "
                   "Los siguientes análisis son generales.")
         st.markdown("---")
 
-    # Análisis Generales (no dependen directamente de una variable objetivo predefinida)
     st.header("🔬 Análisis Generales del Dataset")
 
     st.subheader("Matriz de Correlación (Columnas Numéricas)")
@@ -591,9 +575,7 @@ Puedes hacer clic en los valores o usar un heatmap para ver rápidamente qué pa
         st.info("No hay suficientes columnas numéricas para generar una matriz de correlación.")
 
     st.subheader("Distribución de Variables Individuales")
-    # ... (código existente de distribución de variables, sin cambios importantes) ...
     dist_cols = df_eda.columns.tolist()
-    # Intenta preseleccionar la variable objetivo si está definida y existe
     default_dist_index = 0
     if target_var_name and target_var_name in dist_cols:
         default_dist_index = dist_cols.index(target_var_name)
@@ -647,12 +629,11 @@ Puedes hacer clic en los valores o usar un heatmap para ver rápidamente qué pa
             except Exception as e:
                 st.error(f"No se pudo generar el gráfico: {e}")
 
-# ... (código de las páginas anteriores) ...
 
 elif page == "Entrenamiento y Predicción":
     st.title(f"🚀 {page}: Construye, Evalúa y Usa tu Modelo")
 
-    # --- PASO 0: PREPARACIÓN DE DATOS ---
+    # Preparación de datos
     if 'df' not in st.session_state or st.session_state.df is None:
         st.warning("Por favor, primero carga un dataset en la página de 'Inicio'.")
         st.stop()
@@ -687,7 +668,7 @@ elif page == "Entrenamiento y Predicción":
     st.write(f"Tipo de problema detectado: **{st.session_state.problem_type}**")
     st.markdown("---")
 
-    # --- PASO 1: CÁLCULO Y SELECCIÓN DE CARACTERÍSTICAS ---
+    # Calculo y selección de características
     st.header("1. Selección de Características")
     
     # Usar solo columnas numéricas o categóricas simples para el cálculo de importancia inicial
@@ -695,10 +676,7 @@ elif page == "Entrenamiento y Predicción":
     X_for_importance = X_original.copy()
     categorical_cols_for_imp = X_for_importance.select_dtypes(include=['object', 'category']).columns
     
-    # Simplificación: Para el cálculo de importancia, se usarán solo las numéricas o se intentará una codificación simple.
-    # Una opción es usar RandomForest que puede dar importancia incluso con OHE, pero el OHE puede diluir la importancia.
-    # Otra es usar SelectKBest con f_regression/chi2.
-    # Por simplicidad, usaremos RF en las numéricas y mostraremos una advertencia para las categóricas en este paso.
+    # Simplificación: Para el cálculo de importancia, se usarán solo las numéricas o se intentará una codificación simple
     
     numeric_cols_for_imp = X_for_importance.select_dtypes(include=np.number).columns
     if not numeric_cols_for_imp.empty:
@@ -765,19 +743,14 @@ elif page == "Entrenamiento y Predicción":
         st.stop()
     st.markdown("---")
 
-    # --- PASO 2: SELECCIÓN DEL TIPO DE MODELO ---
+    # Seleccionar el tipo de modelo
     st.header("2. Selección y Configuración del Modelo")
     model_choices = ["Random Forest", "Decision Tree", "XGBoost"]
     st.session_state.selected_model_type = st.selectbox("Elige el tipo de modelo:", model_choices, key="model_type_selector")
 
-    # (Opcional) Hiperparámetros básicos para cada modelo
-    # Ejemplo para Random Forest:
-    # if st.session_state.selected_model_type == "Random Forest":
-    #     n_estimators = st.slider("Número de árboles (n_estimators):", 50, 500, 100, step=10)
-    #     max_depth = st.slider("Profundidad máxima (max_depth):", 3, 20, 10, step=1)
     st.markdown("---")
 
-    # --- PASO 3: ENTRENAMIENTO DEL MODELO ---
+    # Entrenamiento del modelo
     st.header("3. Entrenamiento y Evaluación del Modelo")
     if st.button(f"🚀 Entrenar Modelo: {st.session_state.selected_model_type}", key="train_btn"):
         with st.spinner(f"Entrenando {st.session_state.selected_model_type}..."):
@@ -793,7 +766,7 @@ elif page == "Entrenamiento y Predicción":
                     ('num', MinMaxScaler(), numeric_features), # Escalar numéricas
                     ('cat', OneHotEncoder(handle_unknown='ignore', drop='first'), categorical_features) # OHE para categóricas
                 ], 
-                remainder='passthrough' # Dejar otras columnas (si las hubiera, aunque no debería si seleccionamos bien)
+                remainder='passthrough' # Dejar otras columnas
             )
 
             # Definir el modelo
@@ -836,11 +809,6 @@ elif page == "Entrenamiento y Predicción":
                     metrics['Precision'] = precision_score(y_test, y_pred_test, average='weighted', zero_division=0)
                     metrics['Recall'] = recall_score(y_test, y_pred_test, average='weighted', zero_division=0)
                     metrics['F1-Score'] = f1_score(y_test, y_pred_test, average='weighted', zero_division=0)
-                    # Matriz de confusión (necesita clases decodificadas para etiquetas)
-                    # cm = confusion_matrix(y_test, y_pred_test) # y_test son las clases codificadas
-                    # if st.session_state.label_encoder_target:
-                    #     cm_labels = st.session_state.label_encoder_target.classes_
-                    #     # Graficar CM
                 
                 st.session_state.model_performance_metrics = metrics
                 st.success(f"Modelo '{st.session_state.selected_model_type}' entrenado y evaluado exitosamente!")
@@ -857,10 +825,9 @@ elif page == "Entrenamiento y Predicción":
         for metric_name, metric_value in st.session_state.model_performance_metrics.items():
             st.write(f"- **{metric_name}:** {metric_value:.4f}")
         
-        # (Opcional) Mostrar matriz de confusión para clasificación
+        # Mostrar matriz de confusión para clasificación
         if st.session_state.problem_type == "Classification":
-            y_pred_test_for_cm = st.session_state.trained_pipeline.predict(X_test) # X_test ya está definida arriba
-            # y_test_for_cm = y_test # y_test ya está definida arriba y es la codificada
+            y_pred_test_for_cm = st.session_state.trained_pipeline.predict(X_test)
             
             # Decodificar etiquetas para la matriz de confusión si es posible
             y_test_decoded_cm = st.session_state.label_encoder_target.inverse_transform(y_test) if st.session_state.label_encoder_target else y_test
@@ -878,7 +845,7 @@ elif page == "Entrenamiento y Predicción":
             plt.clf()
         st.markdown("---")
 
-    # --- PASO 4: REALIZAR NUEVAS PREDICCIONES ---
+    # Realizar nuevas predicciones
     if st.session_state.trained_pipeline:
         st.header("4. Realizar Nuevas Predicciones")
         st.markdown("Ingresa los valores para las características con las que se entrenó el modelo:")
