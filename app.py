@@ -54,6 +54,7 @@ if "reset_app" not in st.session_state:
 # Para limpiar la app
 def limpiar_app():
     st.session_state.reset_app = True
+    st.rerun()
 
 if st.session_state.reset_app:
     keys_to_reset = ['data_uploaded', 'uploaded_file_content', 'df', 
@@ -111,31 +112,6 @@ if 'target_variable' not in st.session_state:
     st.session_state.target_variable = None
 
 
-# Reiniciar la app
-def limpiar_app():
-    st.session_state.reset_app = True
-
-# Ejecutar reinicio si se da click en el botón
-if st.session_state.reset_app:
-    keys_to_reset = ['data_uploaded', 'uploaded_file_content', 'df', 
-                     'limpieza_aplicada', 'df_limpio', 'scaler_fitted', 
-                     'fitted_scaler_instance', 'target_variable']
-    for key in keys_to_reset:
-        if key in st.session_state:
-            del st.session_state[key]
-    
-    st.session_state.data_uploaded = False
-    st.session_state.uploaded_file_content = None
-    st.session_state.df = None
-    st.session_state.page_index = 0 
-    st.session_state.limpieza_aplicada = False
-    st.session_state.df_limpio = None
-    st.session_state.reset_app = False
-    st.session_state.scaler_fitted = False
-    st.session_state.fitted_scaler_instance = None
-    st.session_state.target_variable = None
-    st.rerun()
-
 # Subida de archivo si no hay datos
 if not st.session_state.data_uploaded:
     st.title("🔎 Analiza tu dataset")
@@ -183,18 +159,6 @@ if df is None:
     if st.button("Reintentar Carga de Archivo"):
         limpiar_app() 
     st.stop()
-
-@st.cache_resource
-def load_model_from_path(model_path='models/housing_model.pkl'):
-    try:
-        model = joblib.load(model_path)
-        return model
-    except FileNotFoundError:
-        return None
-    except Exception:
-        return None
-
-model = load_model_from_path() 
 
 if st.session_state.fitted_scaler_instance is None:
     st.session_state.fitted_scaler_instance = MinMaxScaler()
