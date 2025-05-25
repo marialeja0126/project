@@ -535,8 +535,6 @@ Una matriz de correlación muestra qué tan relacionadas están dos variables nu
 - Busca valores cercanos a **1 o -1** para identificar relaciones fuertes.
 - Una correlación alta no siempre significa causalidad.
 - Puedes usar esto para identificar variables redundantes o relevantes para modelos predictivos.
-
-Puedes hacer clic en los valores o usar un heatmap para ver rápidamente qué pares de variables tienen relaciones fuertes o débiles.
 """)
 
     numeric_cols_eda = df_eda.select_dtypes(include=np.number)
