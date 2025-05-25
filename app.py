@@ -427,6 +427,13 @@ elif page == "Análisis Exploratorio":
 
         # A. Distribución de la Variable Objetivo
         st.subheader(f"A. Distribución de '{target_var_name}'")
+        st.markdown(
+            """
+            ### 🔗 ¿Cómo Interpretar un histograma?
+
+            Un histograma muestra cómo se distribuyen los datos en intervalos. La altura de cada barra indica cuántos datos caen en ese intervalo. Observa la forma general: ¿están los datos concentrados en un rango específico o distribuidos uniformemente?
+            """
+            )
         fig_target_dist, ax_target_dist = plt.subplots(figsize=(8, 5))
         if pd.api.types.is_numeric_dtype(target_series):
             sns.histplot(target_series, kde=True, ax=ax_target_dist, color="skyblue")
@@ -450,6 +457,13 @@ elif page == "Análisis Exploratorio":
 
         # B. Relaciones con otras variables (dependiendo del tipo de target)
         st.subheader(f"B. Relaciones de otras variables con '{target_var_name}'")
+        st.markdown(
+            """
+            ### 🔗 ¿Cómo Interpretar un scatter?
+
+            Un scatter plot muestra la relación entre dos variables. Cada punto representa un par de valores, con la posición en el eje X y Y correspondiente a las variables. Observa si hay patrones o tendencias en la distribución de los puntos.
+            """
+            )
         other_vars = df_eda.columns.drop(target_var_name, errors='ignore')
 
         if pd.api.types.is_numeric_dtype(target_series): # Target Numérico
