@@ -519,8 +519,6 @@ elif page == "Análisis Exploratorio":
                   "Los siguientes análisis son generales.")
         st.markdown("---")
 
-    st.header("🔬 Análisis Generales del Dataset")
-
     st.subheader("Matriz de Correlación (Columnas Numéricas)")
     st.markdown("""
 ### 🔗 ¿Cómo Interpretar una Matriz de Correlación?
